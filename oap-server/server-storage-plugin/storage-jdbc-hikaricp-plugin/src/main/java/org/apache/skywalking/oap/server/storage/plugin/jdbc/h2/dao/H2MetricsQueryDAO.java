@@ -40,6 +40,8 @@ import org.apache.skywalking.oap.server.core.storage.annotation.ValueColumnMetad
 import org.apache.skywalking.oap.server.core.storage.query.IMetricsQueryDAO;
 import org.apache.skywalking.oap.server.library.client.jdbc.hikaricp.JDBCHikariCPClient;
 
+import static org.apache.skywalking.oap.server.storage.plugin.jdbc.h2.dao.H2TableInstaller.H2_RESERVED_WORDS;
+
 public class H2MetricsQueryDAO extends H2SQLExecutor implements IMetricsQueryDAO {
 
     private JDBCHikariCPClient h2Client;
@@ -52,6 +54,10 @@ public class H2MetricsQueryDAO extends H2SQLExecutor implements IMetricsQueryDAO
     public long readMetricsValue(final MetricsCondition condition,
                                 String valueColumnName,
                                 final Duration duration) throws IOException {
+        if (H2_RESERVED_WORDS.contains(valueColumnName)) {
+            valueColumnName = String.format("`%s`", valueColumnName);
+        }
+
         int defaultValue = ValueColumnMetadata.INSTANCE.getDefaultValue(condition.getName());
         final Function function = ValueColumnMetadata.INSTANCE.getValueFunction(condition.getName());
         if (function == Function.Latest) {
@@ -94,13 +100,17 @@ public class H2MetricsQueryDAO extends H2SQLExecutor implements IMetricsQueryDAO
 
     protected StringBuilder buildMetricsValueSql(String op, String valueColumnName, String conditionName) {
         return new StringBuilder(
-                "select " + Metrics.ENTITY_ID + " id, " + op + "(" + valueColumnName + ") value from " + conditionName + " where ");
+                "select " + Metrics.ENTITY_ID + " id, " + op + "(" + valueColumnName + ") `value` from " + conditionName + " where ");
     }
 
     @Override
     public MetricsValues readMetricsValues(final MetricsCondition condition,
-                                           final String valueColumnName,
+                                           String valueColumnName,
                                            final Duration duration) throws IOException {
+        if (H2_RESERVED_WORDS.contains(valueColumnName)) {
+            valueColumnName = String.format("`%s`", valueColumnName);
+        }
+
         final List<PointOfTime> pointOfTimes = duration.assembleDurationPoints();
         List<String> ids = new ArrayList<>(pointOfTimes.size());
         pointOfTimes.forEach(pointOfTime -> {
@@ -147,9 +157,13 @@ public class H2MetricsQueryDAO extends H2SQLExecutor implements IMetricsQueryDAO
 
     @Override
     public List<MetricsValues> readLabeledMetricsValues(final MetricsCondition condition,
-                                                        final String valueColumnName,
+                                                        String valueColumnName,
                                                         final List<String> labels,
                                                         final Duration duration) throws IOException {
+        if (H2_RESERVED_WORDS.contains(valueColumnName)) {
+            valueColumnName = String.format("`%s`", valueColumnName);
+        }
+
         final List<PointOfTime> pointOfTimes = duration.assembleDurationPoints();
         List<String> ids = new ArrayList<>(pointOfTimes.size());
         pointOfTimes.forEach(pointOfTime -> {
@@ -191,8 +205,12 @@ public class H2MetricsQueryDAO extends H2SQLExecutor implements IMetricsQueryDAO
 
     @Override
     public HeatMap readHeatMap(final MetricsCondition condition,
-                               final String valueColumnName,
+                               String valueColumnName,
                                final Duration duration) throws IOException {
+        if (H2_RESERVED_WORDS.contains(valueColumnName)) {
+            valueColumnName = String.format("`%s`", valueColumnName);
+        }
+
         final List<PointOfTime> pointOfTimes = duration.assembleDurationPoints();
         List<String> ids = new ArrayList<>(pointOfTimes.size());
         pointOfTimes.forEach(pointOfTime -> {

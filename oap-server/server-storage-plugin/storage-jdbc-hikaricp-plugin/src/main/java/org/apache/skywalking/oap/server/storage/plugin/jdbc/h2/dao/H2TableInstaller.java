@@ -18,12 +18,14 @@
 
 package org.apache.skywalking.oap.server.storage.plugin.jdbc.h2.dao;
 
+import com.google.common.collect.Sets;
 import com.google.gson.JsonObject;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.oap.server.core.analysis.NodeType;
 import org.apache.skywalking.oap.server.core.storage.StorageException;
@@ -48,6 +50,10 @@ public class H2TableInstaller extends ModelInstaller {
 
     protected final int maxSizeOfArrayColumn;
     protected final int numOfSearchableValuesPerTag;
+
+    public static final Set<String> H2_RESERVED_WORDS = Sets.newHashSet(
+        "value"
+    );
 
     public H2TableInstaller(Client client,
                             ModuleManager moduleManager,
@@ -100,7 +106,10 @@ public class H2TableInstaller extends ModelInstaller {
     }
 
     protected String transform(ModelColumn column, Class<?> type, Type genericType) {
-        final String storageName = column.getColumnName().getStorageName();
+        String storageName = column.getColumnName().getStorageName();
+        if (H2_RESERVED_WORDS.contains(storageName)) {
+            storageName = String.format("`%s`", storageName);
+        }
         if (Integer.class.equals(type) || int.class.equals(type) || NodeType.class.equals(type)) {
             return storageName + " INT";
         } else if (Long.class.equals(type) || long.class.equals(type)) {

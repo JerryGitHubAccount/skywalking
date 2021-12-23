@@ -34,6 +34,8 @@ import org.apache.skywalking.oap.server.core.query.type.SelectedRecord;
 import org.apache.skywalking.oap.server.core.storage.query.ITopNRecordsQueryDAO;
 import org.apache.skywalking.oap.server.library.client.jdbc.hikaricp.JDBCHikariCPClient;
 
+import static org.apache.skywalking.oap.server.storage.plugin.jdbc.h2.dao.H2TableInstaller.H2_RESERVED_WORDS;
+
 public class H2TopNRecordsQueryDAO implements ITopNRecordsQueryDAO {
     private JDBCHikariCPClient h2Client;
 
@@ -43,8 +45,11 @@ public class H2TopNRecordsQueryDAO implements ITopNRecordsQueryDAO {
 
     @Override
     public List<SelectedRecord> readSampledRecords(final TopNCondition condition,
-                                                   final String valueColumnName,
+                                                   String valueColumnName,
                                                    final Duration duration) throws IOException {
+        if (H2_RESERVED_WORDS.contains(valueColumnName)) {
+            valueColumnName = String.format("`%s`", valueColumnName);
+        }
         StringBuilder sql = new StringBuilder("select * from " + condition.getName() + " where ");
         List<Object> parameters = new ArrayList<>(10);
 

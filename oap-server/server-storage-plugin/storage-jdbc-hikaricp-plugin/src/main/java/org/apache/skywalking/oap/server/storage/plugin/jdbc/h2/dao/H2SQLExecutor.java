@@ -38,6 +38,8 @@ import org.apache.skywalking.oap.server.storage.plugin.jdbc.SQLBuilder;
 import org.apache.skywalking.oap.server.storage.plugin.jdbc.SQLExecutor;
 import org.apache.skywalking.oap.server.storage.plugin.jdbc.TableMetaInfo;
 
+import static org.apache.skywalking.oap.server.storage.plugin.jdbc.h2.dao.H2TableInstaller.H2_RESERVED_WORDS;
+
 @Slf4j
 public class H2SQLExecutor {
     protected <T extends StorageData> List<StorageData> getByIDs(JDBCHikariCPClient h2Client,
@@ -73,17 +75,6 @@ public class H2SQLExecutor {
                                                           StorageHashMapBuilder<T> storageBuilder) throws IOException {
         try (Connection connection = h2Client.getConnection();
              ResultSet rs = h2Client.executeQuery(connection, "SELECT * FROM " + modelName + " WHERE id = ?", id)) {
-            return toStorageData(rs, modelName, storageBuilder);
-        } catch (SQLException | JDBCClientException e) {
-            throw new IOException(e.getMessage(), e);
-        }
-    }
-
-    protected StorageData getByColumn(JDBCHikariCPClient h2Client, String modelName, String columnName, Object value,
-                                      StorageHashMapBuilder<? extends StorageData> storageBuilder) throws IOException {
-        try (Connection connection = h2Client.getConnection();
-             ResultSet rs = h2Client.executeQuery(
-                 connection, "SELECT * FROM " + modelName + " WHERE " + columnName + " = ?", value)) {
             return toStorageData(rs, modelName, storageBuilder);
         } catch (SQLException | JDBCClientException e) {
             throw new IOException(e.getMessage(), e);
@@ -157,7 +148,11 @@ public class H2SQLExecutor {
         List<Object> param = new ArrayList<>();
         for (int i = 0; i < columns.size(); i++) {
             ModelColumn column = columns.get(i);
-            sqlBuilder.append(column.getColumnName().getStorageName() + "= ?");
+            String columnName = column.getColumnName().getStorageName();
+            if (H2_RESERVED_WORDS.contains(columnName)) {
+                columnName = String.format("`%s`", columnName);
+            }
+            sqlBuilder.append(columnName + "= ?");
             if (i != columns.size() - 1) {
                 sqlBuilder.append(",");
             }

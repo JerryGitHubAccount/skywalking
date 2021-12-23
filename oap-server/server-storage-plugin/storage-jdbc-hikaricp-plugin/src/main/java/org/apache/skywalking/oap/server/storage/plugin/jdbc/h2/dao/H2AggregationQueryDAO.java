@@ -35,6 +35,8 @@ import org.apache.skywalking.oap.server.core.query.type.SelectedRecord;
 import org.apache.skywalking.oap.server.core.storage.query.IAggregationQueryDAO;
 import org.apache.skywalking.oap.server.library.client.jdbc.hikaricp.JDBCHikariCPClient;
 
+import static org.apache.skywalking.oap.server.storage.plugin.jdbc.h2.dao.H2TableInstaller.H2_RESERVED_WORDS;
+
 public class H2AggregationQueryDAO implements IAggregationQueryDAO {
 
     @Getter(AccessLevel.PROTECTED)
@@ -46,9 +48,13 @@ public class H2AggregationQueryDAO implements IAggregationQueryDAO {
 
     @Override
     public List<SelectedRecord> sortMetrics(final TopNCondition metrics,
-                                            final String valueColumnName,
+                                            String valueColumnName,
                                             final Duration duration,
                                             List<KeyValue> additionalConditions) throws IOException {
+        if (H2_RESERVED_WORDS.contains(valueColumnName)) {
+            valueColumnName = String.format("`%s`", valueColumnName);
+        }
+
         List<Object> conditions = new ArrayList<>(10);
         StringBuilder sql = buildMetricsValueSql(valueColumnName, metrics.getName());
         sql.append(Metrics.TIME_BUCKET).append(" >= ? and ").append(Metrics.TIME_BUCKET).append(" <= ?");
@@ -61,7 +67,7 @@ public class H2AggregationQueryDAO implements IAggregationQueryDAO {
             });
         }
         sql.append(" group by ").append(Metrics.ENTITY_ID);
-        sql.append(")  as T order by value ")
+        sql.append(")  as T order by `value` ")
            .append(metrics.getOrder().equals(Order.ASC) ? "asc" : "desc")
            .append(" limit ")
            .append(metrics.getTopN());
@@ -85,7 +91,7 @@ public class H2AggregationQueryDAO implements IAggregationQueryDAO {
         StringBuilder sql = new StringBuilder();
         sql.append("select * from (select avg(")
                 .append(valueColumnName)
-                .append(") value,")
+                .append(") `value`,")
                 .append(Metrics.ENTITY_ID)
                 .append(" from ")
                 .append(metricsName)
